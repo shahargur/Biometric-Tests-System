@@ -1,14 +1,22 @@
-import math
+import io
+import numpy as np
+from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 from flask import Flask, send_from_directory
+from flask_cors import CORS  # comment this on deployment
+from engineio.async_drivers import gevent
+import json
 import base64
 import cv2
+from PIL import Image
 from deepface import DeepFace
+import matplotlib.pyplot as plt
 from Server.DBfunctions import UniversityDB
 
 
 db_client = UniversityDB()
 app = Flask(__name__)
+# app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins='*')
 
 
@@ -27,7 +35,9 @@ def handle_message(loginDetails):
                        'name': db_client.get_name(loginDetails['email']), 'email': loginDetails['email']})
     else:
         emit('login', {'result': "failure"})
-
+    # else:
+    #     emit("login", "failure")
+    # print(loginDetails)
 
 
 @socketio.on('verification')
@@ -37,7 +47,7 @@ def handle_message(details):
     gallery_string = db_client.get_img(details['email'])
     save_images(prob_string , gallery_string)
     result = face_varification('img1.jpeg', 'img2.jpeg')
-    if (result['distance'] <= 0.35):
+    if (result['verified']):
         emit('verificationres', {'result': "success"})
 
     else:
@@ -65,6 +75,6 @@ def face_varification( img1_path, img2_path ):
         result = DeepFace.verify(img1_path, img2_path)  # validate our images
         return result
     except ValueError:
-        return {'verified': False, 'distance': math.inf}
+        return {'verified': False, 'distance': 'unknown'}
 
 
